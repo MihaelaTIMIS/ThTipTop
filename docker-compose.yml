@@ -1,0 +1,78 @@
+version: "3.7"
+services:
+  backend:
+    build:
+      args:
+        user: thetiptopuser
+        uid: 1000
+      context: backend
+      dockerfile: Dockerfile
+    image: backend-image
+    container_name: backend-container
+    restart: unless-stopped
+    working_dir: /var/www/
+    volumes:
+      - ./backend:/var/www
+    networks:
+      - thetiptop
+
+  mysql:
+    image: mysql:5.7
+    container_name: mysql-container
+    restart: unless-stopped
+    environment:
+      MYSQL_DATABASE: ${DB_DATABASE}
+      MYSQL_ROOT_PASSWORD: ${DB_PASSWORD}
+      MYSQL_PASSWORD: ${DB_PASSWORD}
+      MYSQL_USER: ${DB_USERNAME}
+      SERVICE_TAGS: dev
+      SERVICE_NAME: mysql
+    volumes:
+      - ./docker-compose/mysql:/docker-entrypoint-initdb.d
+    networks:
+      - thetiptop
+
+  nginx:
+    image: nginx:alpine
+    container_name: nginx-container
+    restart: unless-stopped
+    ports:
+      - "8080:80"
+    volumes:
+      - ./backend/:/var/www
+      - ./backend/docker-compose/nginx:/etc/nginx/conf.d
+    networks:
+      - thetiptop
+
+  frontend:
+    build:
+      context: frontend
+      dockerfile: Dockerfile
+    image: frontend-image
+    container_name: frontend-container
+    restart: unless-stopped
+    volumes:
+      - ./frontend:/app
+    networks:
+      - thetiptop
+    ports:
+    - '4200:4200'
+    command: >
+      bash -c "npm install && ng serve --host 0.0.0.0 --port 4200"
+
+  phpmyadmin:
+    depends_on:
+      - mysql
+    image: phpmyadmin/phpmyadmin
+    container_name: phpmyadmin-container
+    restart: unless-stopped
+    ports:
+     - '8081:80'
+    environment:
+     PMA_HOST: mysql
+    networks:
+     - thetiptop
+  
+networks:
+  thetiptop:
+    driver: bridge
